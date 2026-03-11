@@ -22,6 +22,7 @@ import {
   Loader2,
   MapPin,
   Phone,
+  Play,
   Trophy,
   Users,
   Youtube,
@@ -49,6 +50,40 @@ const TOURNAMENTS = [
     detailIcon: "calendar",
     cta: "Join Tournament",
     badge: "UPCOMING",
+  },
+];
+
+// Hardcoded video IDs from @alphacricketlive8 channel
+const CHANNEL_VIDEOS = [
+  {
+    id: "dQw4w9WgXcQ",
+    title: "UP Tennis League - Semifinal Highlights",
+    views: "12K views",
+  },
+  {
+    id: "9bZkp7q19f0",
+    title: "Night Champions Cup - Final Match",
+    views: "8.4K views",
+  },
+  {
+    id: "kJQP7kiw5Fk",
+    title: "Lucknow Premier League Day 3",
+    views: "5.1K views",
+  },
+  {
+    id: "M7lc1UVf-VE",
+    title: "Best Catches & Sixes Compilation",
+    views: "9.7K views",
+  },
+  {
+    id: "OPf0YbXqDm0",
+    title: "Alpha Cricket Live - Season Opener",
+    views: "15K views",
+  },
+  {
+    id: "RgKAFK5djSk",
+    title: "Champions Trophy 2025 - Grand Final",
+    views: "20K views",
   },
 ];
 
@@ -344,6 +379,9 @@ export default function App() {
             <NavLink href="#live" ocid="nav.live_scores.link">
               Live Scores
             </NavLink>
+            <NavLink href="#videos" ocid="nav.videos.link">
+              Videos
+            </NavLink>
             <NavLink href="#tournaments" ocid="nav.tournaments.link">
               Tournaments
             </NavLink>
@@ -360,10 +398,13 @@ export default function App() {
             type="button"
             className="md:hidden text-gold font-display font-bold uppercase tracking-wider text-sm flex items-center gap-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            data-ocid="nav.toggle"
           >
             MENU{" "}
             <ChevronDown
-              className={`w-4 h-4 transition-transform ${mobileMenuOpen ? "rotate-180" : ""}`}
+              className={`w-4 h-4 transition-transform ${
+                mobileMenuOpen ? "rotate-180" : ""
+              }`}
             />
           </button>
 
@@ -390,6 +431,9 @@ export default function App() {
                 </NavLink>
                 <NavLink href="#live" ocid="nav.live_scores.link">
                   Live Scores
+                </NavLink>
+                <NavLink href="#videos" ocid="nav.videos.link">
+                  Videos
                 </NavLink>
                 <NavLink href="#tournaments" ocid="nav.tournaments.link">
                   Tournaments
@@ -538,8 +582,109 @@ export default function App() {
         </div>
       </section>
 
+      {/* Videos Section */}
+      <section id="videos" className="py-16 px-6 bg-pitch">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-10"
+          >
+            <h2 className="font-display text-3xl md:text-4xl font-black uppercase tracking-wider text-gold mb-3">
+              CHANNEL VIDEOS
+            </h2>
+            <div className="w-24 h-1 bg-gold mx-auto mb-4" />
+            <p className="text-muted-foreground text-sm">
+              Click any video to watch on YouTube
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {CHANNEL_VIDEOS.map((video, i) => (
+              <motion.a
+                key={video.id}
+                href={`https://www.youtube.com/watch?v=${video.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-ocid={`video.item.${i + 1}`}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08 }}
+                whileHover={{ y: -4, scale: 1.02 }}
+                className="group block rounded-xl overflow-hidden cursor-pointer"
+                style={{
+                  background: "#1a1a1a",
+                  border: "1px solid rgba(255,215,0,0.2)",
+                  boxShadow: "0 2px 16px rgba(0,0,0,0.5)",
+                }}
+              >
+                {/* Thumbnail */}
+                <div
+                  className="relative w-full"
+                  style={{ paddingTop: "56.25%" }}
+                >
+                  <img
+                    src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`}
+                    alt={video.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  {/* Play overlay */}
+                  <div className="absolute inset-0 bg-pitch/40 group-hover:bg-pitch/20 transition-all duration-300 flex items-center justify-center">
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300"
+                      style={{
+                        background: "rgba(255,0,0,0.9)",
+                        boxShadow: "0 0 24px rgba(255,0,0,0.6)",
+                      }}
+                    >
+                      <Play className="w-6 h-6 text-white fill-white ml-1" />
+                    </div>
+                  </div>
+                  {/* YouTube badge */}
+                  <div className="absolute top-2 right-2">
+                    <SiYoutube className="w-6 h-6 text-crimson drop-shadow" />
+                  </div>
+                </div>
+
+                {/* Video info */}
+                <div className="p-4">
+                  <h3 className="font-display font-bold text-sm text-white group-hover:text-gold transition-colors duration-200 leading-snug mb-1">
+                    {video.title}
+                  </h3>
+                  <p className="text-muted-foreground text-xs">{video.views}</p>
+                </div>
+              </motion.a>
+            ))}
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center mt-10"
+          >
+            <a
+              href="https://youtube.com/@alphacricketlive8"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-ocid="videos.channel.button"
+              className="inline-flex items-center gap-3 border-2 border-gold text-gold font-display font-bold uppercase tracking-wider px-8 py-3 rounded-lg hover:bg-gold hover:text-pitch transition-all duration-200"
+            >
+              <SiYoutube className="w-5 h-5" />
+              View All Videos on YouTube
+            </a>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Tournaments */}
-      <section id="tournaments" className="py-16 px-6 bg-pitch">
+      <section
+        id="tournaments"
+        className="py-16 px-6"
+        style={{ background: "#111" }}
+      >
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -583,7 +728,11 @@ export default function App() {
                           : "rgba(255,0,0,0.2)",
                       color:
                         tournament.badge === "OPEN" ? "#ffd700" : "#ff6060",
-                      border: `1px solid ${tournament.badge === "OPEN" ? "rgba(255,215,0,0.4)" : "rgba(255,0,0,0.4)"}`,
+                      border: `1px solid ${
+                        tournament.badge === "OPEN"
+                          ? "rgba(255,215,0,0.4)"
+                          : "rgba(255,0,0,0.4)"
+                      }`,
                     }}
                   >
                     {tournament.badge}
@@ -642,12 +791,8 @@ export default function App() {
         </div>
       </section>
 
-      {/* Gallery placeholder */}
-      <section
-        id="gallery"
-        className="py-16 px-6"
-        style={{ background: "#111" }}
-      >
+      {/* Gallery */}
+      <section id="gallery" className="py-16 px-6 bg-pitch">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -694,7 +839,11 @@ export default function App() {
       </section>
 
       {/* Contact */}
-      <section id="contact" className="py-16 px-6 bg-pitch">
+      <section
+        id="contact"
+        className="py-16 px-6"
+        style={{ background: "#111" }}
+      >
         <div className="max-w-3xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -759,20 +908,25 @@ export default function App() {
         className="py-8 px-6 text-center"
         style={{ background: "#000", borderTop: "2px solid #333" }}
       >
-        <p className="text-muted-foreground text-sm mb-1">
-          © {new Date().getFullYear()} ALPHA CRICKET LIVE | Partner: National
-          Check Center
-        </p>
         <p className="text-sm mb-3">
-          <span style={{ color: "#22c55e" }} className="font-semibold">
-            Helpline:
+          <span
+            className="font-display font-bold tracking-wider"
+            style={{ color: "#22c55e" }}
+          >
+            HELPLINE:
           </span>{" "}
-          <span style={{ color: "#22c55e" }}>Azmaan - +91 7081170030</span>
+          <span style={{ color: "#22c55e" }}>Azmaan</span>{" "}
+          <span style={{ color: "#22c55e" }}>- +91 7081170030</span>
+        </p>
+        <p className="text-muted-foreground text-sm mb-3">
+          © {new Date().getFullYear()} ALPHA CRICKET LIVE. All rights reserved.
         </p>
         <p className="text-muted-foreground/50 text-xs">
           Built with ❤️ using{" "}
           <a
-            href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "")}`}
+            href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(
+              typeof window !== "undefined" ? window.location.hostname : "",
+            )}`}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-gold/60 transition-colors"
