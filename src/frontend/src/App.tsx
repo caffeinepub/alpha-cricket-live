@@ -308,7 +308,17 @@ export default function App() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
+            className="flex flex-col items-center"
           >
+            {/* Channel Logo */}
+            <motion.img
+              src="/assets/uploads/Picsart_26-01-29_15-33-12-319-1.png"
+              alt="Alpha Cricket Live Logo"
+              className="w-28 h-28 md:w-36 md:h-36 object-contain mb-3 drop-shadow-lg"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            />
             <div
               className="font-display text-4xl md:text-5xl font-black text-white tracking-[0.15em] uppercase"
               style={{
