@@ -14,21 +14,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
-import { useSubmitRegistration } from "@/hooks/useQueries";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  useGetAllRegistrations,
+  useSubmitRegistration,
+} from "@/hooks/useQueries";
+import {
+  ArrowLeft,
   Calendar,
   ChevronDown,
   Loader2,
+  Lock,
+  LogOut,
   MapPin,
   Phone,
   Play,
+  Shield,
   Trophy,
   Users,
   Youtube,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SiYoutube } from "react-icons/si";
 import { toast } from "sonner";
 
@@ -86,6 +102,8 @@ const CHANNEL_VIDEOS = [
     title: "Alpha Cricket Live - Match 6",
   },
 ];
+
+const ADMIN_PASSWORD = "alpha2025";
 
 function NavLink({
   href,
@@ -308,11 +326,516 @@ function RegistrationModal({
   );
 }
 
+// ─── Admin Panel ────────────────────────────────────────────────────────────
+
+function AdminLoginScreen({
+  onLogin,
+}: {
+  onLogin: () => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === ADMIN_PASSWORD) {
+      setError("");
+      onLogin();
+    } else {
+      setError("Galat password! Dobara try karein.");
+      setPassword("");
+    }
+  };
+
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ background: "#0a0a0a" }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-sm"
+      >
+        {/* Logo & title */}
+        <div className="text-center mb-8">
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
+            style={{
+              background: "rgba(255,215,0,0.1)",
+              border: "2px solid rgba(255,215,0,0.4)",
+            }}
+          >
+            <Shield className="w-8 h-8" style={{ color: "#ffd700" }} />
+          </div>
+          <h1
+            className="font-display text-3xl font-black uppercase tracking-wider"
+            style={{ color: "#ffd700" }}
+          >
+            ADMIN PANEL
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1 font-display tracking-wider uppercase">
+            Alpha Cricket Live
+          </p>
+        </div>
+
+        {/* Login card */}
+        <div
+          className="rounded-2xl p-8"
+          style={{
+            background: "#151515",
+            border: "1px solid rgba(255,215,0,0.3)",
+            boxShadow: "0 0 40px rgba(255,215,0,0.05)",
+          }}
+        >
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label
+                htmlFor="admin-password"
+                className="font-display text-xs uppercase tracking-widest"
+                style={{ color: "rgba(255,215,0,0.7)" }}
+              >
+                Password
+              </Label>
+              <div className="relative">
+                <Lock
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                  style={{ color: "rgba(255,215,0,0.4)" }}
+                />
+                <Input
+                  id="admin-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError("");
+                  }}
+                  placeholder="Enter admin password"
+                  required
+                  autoComplete="current-password"
+                  data-ocid="admin.password.input"
+                  className="pl-10 bg-pitch-mid text-foreground placeholder:text-muted-foreground"
+                  style={{
+                    borderColor: error
+                      ? "rgba(255,60,60,0.6)"
+                      : "rgba(255,215,0,0.25)",
+                  }}
+                />
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {error && (
+                <motion.p
+                  key="error"
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  data-ocid="admin.login.error_state"
+                  className="text-sm font-display"
+                  style={{ color: "#ff6060" }}
+                >
+                  ⚠️ {error}
+                </motion.p>
+              )}
+            </AnimatePresence>
+
+            <Button
+              type="submit"
+              data-ocid="admin.login.submit_button"
+              className="w-full font-display font-black uppercase tracking-wider text-pitch"
+              style={{ background: "#ffd700" }}
+            >
+              Login
+            </Button>
+          </form>
+        </div>
+
+        {/* Back link */}
+        <div className="text-center mt-6">
+          <button
+            type="button"
+            data-ocid="admin.back.link"
+            onClick={() => {
+              window.location.hash = "";
+            }}
+            className="inline-flex items-center gap-2 text-sm font-display uppercase tracking-wider transition-colors"
+            style={{ color: "rgba(255,215,0,0.5)" }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Website
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function AdminDashboard({ onLogout }: { onLogout: () => void }) {
+  const { data: registrations, isLoading, isError } = useGetAllRegistrations();
+
+  const tournamentLabel = (id: string) => {
+    if (id === "up-tennis-league") return "UP Tennis League";
+    if (id === "night-champions-cup") return "Night Champions Cup";
+    return id;
+  };
+
+  return (
+    <div className="min-h-screen" style={{ background: "#0a0a0a" }}>
+      {/* Admin header */}
+      <header
+        style={{
+          background: "linear-gradient(90deg, #1a1400 0%, #0a0a0a 60%)",
+          borderBottom: "2px solid rgba(255,215,0,0.3)",
+        }}
+      >
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shield className="w-6 h-6" style={{ color: "#ffd700" }} />
+            <div>
+              <h1
+                className="font-display text-xl font-black uppercase tracking-wider"
+                style={{ color: "#ffd700" }}
+              >
+                ADMIN PANEL
+              </h1>
+              <p className="text-muted-foreground text-xs font-display uppercase tracking-wider">
+                Registrations Dashboard
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              data-ocid="admin.back.link"
+              onClick={() => {
+                window.location.hash = "";
+              }}
+              className="hidden sm:inline-flex items-center gap-2 text-xs font-display uppercase tracking-wider transition-colors px-3 py-2 rounded-lg"
+              style={{
+                color: "rgba(255,215,0,0.6)",
+                border: "1px solid rgba(255,215,0,0.2)",
+              }}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Main Site
+            </button>
+            <Button
+              onClick={onLogout}
+              data-ocid="admin.logout.button"
+              variant="outline"
+              size="sm"
+              className="font-display uppercase tracking-wider text-xs"
+              style={{
+                borderColor: "rgba(255,60,60,0.4)",
+                color: "#ff8080",
+              }}
+            >
+              <LogOut className="w-3.5 h-3.5 mr-1.5" />
+              Logout
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        {/* Stats bar */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8"
+        >
+          {[
+            {
+              label: "Total Registrations",
+              value: registrations?.length ?? "—",
+              icon: Users,
+            },
+            {
+              label: "UP Tennis League",
+              value:
+                registrations?.filter(
+                  (r) => r.tournament === "up-tennis-league",
+                ).length ?? "—",
+              icon: Trophy,
+            },
+            {
+              label: "Night Champions Cup",
+              value:
+                registrations?.filter(
+                  (r) => r.tournament === "night-champions-cup",
+                ).length ?? "—",
+              icon: Trophy,
+            },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              className="rounded-xl p-4"
+              style={{
+                background: "#151515",
+                border: "1px solid rgba(255,215,0,0.2)",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <stat.icon
+                  className="w-4 h-4"
+                  style={{ color: "rgba(255,215,0,0.6)" }}
+                />
+                <span
+                  className="text-xs font-display uppercase tracking-wider"
+                  style={{ color: "rgba(255,215,0,0.5)" }}
+                >
+                  {stat.label}
+                </span>
+              </div>
+              <p
+                className="font-display text-3xl font-black"
+                style={{ color: "#ffd700" }}
+              >
+                {stat.value}
+              </p>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Table section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.15 }}
+          className="rounded-2xl overflow-hidden"
+          style={{
+            border: "1px solid rgba(255,215,0,0.25)",
+            background: "#111",
+          }}
+        >
+          <div
+            className="px-6 py-4 flex items-center justify-between"
+            style={{ borderBottom: "1px solid rgba(255,215,0,0.15)" }}
+          >
+            <h2
+              className="font-display text-lg font-black uppercase tracking-wider"
+              style={{ color: "#ffd700" }}
+            >
+              All Registrations
+            </h2>
+            {registrations && (
+              <span
+                className="font-display text-xs uppercase tracking-wider px-2 py-1 rounded-full"
+                style={{
+                  background: "rgba(255,215,0,0.1)",
+                  color: "rgba(255,215,0,0.7)",
+                  border: "1px solid rgba(255,215,0,0.2)",
+                }}
+              >
+                {registrations.length} total
+              </span>
+            )}
+          </div>
+
+          {/* Loading state */}
+          {isLoading && (
+            <div
+              data-ocid="admin.registrations.loading_state"
+              className="p-6 space-y-3"
+            >
+              {[1, 2, 3, 4].map((n) => (
+                <Skeleton
+                  key={n}
+                  className="h-10 w-full rounded-lg"
+                  style={{ background: "rgba(255,215,0,0.05)" }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Error state */}
+          {isError && (
+            <div
+              data-ocid="admin.registrations.error_state"
+              className="p-12 text-center"
+            >
+              <p className="text-2xl mb-2">⚠️</p>
+              <p
+                className="font-display uppercase tracking-wider text-sm"
+                style={{ color: "#ff8080" }}
+              >
+                Data load karne mein error aayi. Dobara try karein.
+              </p>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!isLoading && !isError && registrations?.length === 0 && (
+            <div
+              data-ocid="admin.registrations.empty_state"
+              className="p-16 text-center"
+            >
+              <div className="text-5xl mb-4">📋</div>
+              <p
+                className="font-display text-xl font-bold uppercase tracking-wider mb-2"
+                style={{ color: "rgba(255,215,0,0.5)" }}
+              >
+                Koi Registration Nahi
+              </p>
+              <p className="text-muted-foreground text-sm">
+                Abhi tak kisi ne register nahi kiya hai.
+              </p>
+            </div>
+          )}
+
+          {/* Table */}
+          {!isLoading &&
+            !isError &&
+            registrations &&
+            registrations.length > 0 && (
+              <div className="overflow-x-auto">
+                <Table data-ocid="admin.registrations.table">
+                  <TableHeader>
+                    <TableRow style={{ borderColor: "rgba(255,215,0,0.1)" }}>
+                      <TableHead
+                        className="font-display uppercase tracking-wider text-xs"
+                        style={{ color: "rgba(255,215,0,0.6)" }}
+                      >
+                        #
+                      </TableHead>
+                      <TableHead
+                        className="font-display uppercase tracking-wider text-xs"
+                        style={{ color: "rgba(255,215,0,0.6)" }}
+                      >
+                        Team Name
+                      </TableHead>
+                      <TableHead
+                        className="font-display uppercase tracking-wider text-xs"
+                        style={{ color: "rgba(255,215,0,0.6)" }}
+                      >
+                        Captain
+                      </TableHead>
+                      <TableHead
+                        className="font-display uppercase tracking-wider text-xs"
+                        style={{ color: "rgba(255,215,0,0.6)" }}
+                      >
+                        Phone
+                      </TableHead>
+                      <TableHead
+                        className="font-display uppercase tracking-wider text-xs"
+                        style={{ color: "rgba(255,215,0,0.6)" }}
+                      >
+                        Tournament
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {registrations.map((reg, i) => (
+                      <TableRow
+                        key={`${reg.teamName}-${i}`}
+                        data-ocid={`admin.registrations.row.${i + 1}`}
+                        className="transition-colors"
+                        style={{ borderColor: "rgba(255,215,0,0.07)" }}
+                      >
+                        <TableCell
+                          className="font-display text-xs"
+                          style={{ color: "rgba(255,215,0,0.3)" }}
+                        >
+                          {i + 1}
+                        </TableCell>
+                        <TableCell
+                          className="font-display font-bold text-sm"
+                          style={{ color: "#ffd700" }}
+                        >
+                          {reg.teamName}
+                        </TableCell>
+                        <TableCell className="text-foreground text-sm">
+                          {reg.captainName}
+                        </TableCell>
+                        <TableCell>
+                          <a
+                            href={`tel:${reg.phoneNumber}`}
+                            className="inline-flex items-center gap-1.5 text-sm transition-colors"
+                            style={{ color: "#22c55e" }}
+                          >
+                            <Phone className="w-3 h-3" />
+                            {reg.phoneNumber}
+                          </a>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className="font-display text-xs px-2 py-1 rounded-full uppercase tracking-wider"
+                            style={{
+                              background:
+                                reg.tournament === "up-tennis-league"
+                                  ? "rgba(255,215,0,0.12)"
+                                  : "rgba(255,100,100,0.12)",
+                              color:
+                                reg.tournament === "up-tennis-league"
+                                  ? "#ffd700"
+                                  : "#ff8080",
+                              border: `1px solid ${
+                                reg.tournament === "up-tennis-league"
+                                  ? "rgba(255,215,0,0.25)"
+                                  : "rgba(255,100,100,0.25)"
+                              }`,
+                            }}
+                          >
+                            {tournamentLabel(reg.tournament)}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+        </motion.div>
+      </main>
+
+      {/* Footer */}
+      <footer className="text-center py-6 text-muted-foreground/40 text-xs font-display uppercase tracking-wider">
+        © {new Date().getFullYear()} Alpha Cricket Live · Admin Portal
+      </footer>
+    </div>
+  );
+}
+
+function AdminPanel() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  if (!isLoggedIn) {
+    return <AdminLoginScreen onLogin={() => setIsLoggedIn(true)} />;
+  }
+
+  return <AdminDashboard onLogout={() => setIsLoggedIn(false)} />;
+}
+
+// ─── Main App ────────────────────────────────────────────────────────────────
+
 export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTournament, setSelectedTournament] =
     useState("up-tennis-league");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(
+    () => window.location.hash === "#admin",
+  );
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setIsAdmin(window.location.hash === "#admin");
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  if (isAdmin) {
+    return <AdminPanel />;
+  }
 
   const openModal = (tournamentId: string) => {
     setSelectedTournament(tournamentId);

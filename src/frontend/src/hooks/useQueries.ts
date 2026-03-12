@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActor } from "./useActor";
 
 export function useSubmitRegistration() {
@@ -28,5 +28,25 @@ export function useSubmitRegistration() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["registrations"] });
     },
+  });
+}
+
+export function useGetAllRegistrations() {
+  const { actor, isFetching } = useActor();
+
+  return useQuery<
+    Array<{
+      teamName: string;
+      captainName: string;
+      phoneNumber: string;
+      tournament: string;
+    }>
+  >({
+    queryKey: ["registrations"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllRegistrationsByTournament();
+    },
+    enabled: !!actor && !isFetching,
   });
 }
