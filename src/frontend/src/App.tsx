@@ -24,6 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useActor } from "@/hooks/useActor";
 import {
   useGetAllRegistrations,
   useSubmitRegistration,
@@ -68,6 +70,35 @@ const TOURNAMENTS = [
     badge: "UPCOMING",
   },
 ];
+
+const STORAGE_KEY = "alpha_cricket_tournaments";
+
+type Tournament = (typeof TOURNAMENTS)[0];
+
+function useTournaments() {
+  const [tournaments, setTournaments] = useState<Tournament[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? (JSON.parse(stored) as Tournament[]) : TOURNAMENTS;
+    } catch {
+      return TOURNAMENTS;
+    }
+  });
+
+  const addTournament = (t: Tournament) => {
+    const updated = [...tournaments, t];
+    setTournaments(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
+
+  const deleteTournament = (id: string) => {
+    const updated = tournaments.filter((t) => t.id !== id);
+    setTournaments(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  };
+
+  return { tournaments, addTournament, deleteTournament };
+}
 
 // Real videos from @alphacricketlive8 channel
 const CHANNEL_VIDEOS = [
@@ -130,11 +161,14 @@ function RegistrationModal({
   open,
   onClose,
   defaultTournament,
+  tournaments: tournamentsProp,
 }: {
   open: boolean;
   onClose: () => void;
   defaultTournament: string;
+  tournaments?: Tournament[];
 }) {
+  const activeTournaments = tournamentsProp ?? TOURNAMENTS;
   const [teamName, setTeamName] = useState("");
   const [captainName, setCaptainName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -142,6 +176,14 @@ function RegistrationModal({
   const [success, setSuccess] = useState(false);
 
   const { mutate, isPending } = useSubmitRegistration();
+  const { actor, isFetching: actorLoading } = useActor();
+
+  // Sync tournament selection when modal opens with a different tournament
+  useEffect(() => {
+    if (open) {
+      setTournament(defaultTournament);
+    }
+  }, [open, defaultTournament]);
 
   const handleClose = () => {
     setSuccess(false);
@@ -153,13 +195,22 @@ function RegistrationModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!actor) {
+      toast.error("Connection ho rahi hai, thodi der baad try karein.");
+      return;
+    }
+    if (!tournament) {
+      toast.error("Koi tournament select karein.");
+      return;
+    }
     mutate(
       { teamName, captainName, phoneNumber, tournament },
       {
         onSuccess: () => {
           setSuccess(true);
         },
-        onError: () => {
+        onError: (err) => {
+          console.error("Registration error:", err);
           toast.error("Registration failed. Please try again.");
         },
       },
@@ -197,7 +248,7 @@ function RegistrationModal({
               </p>
               <Button
                 onClick={handleClose}
-                className="bg-gold text-pitch font-display font-bold hover:bg-gold-light"
+                className="bg-gold text-white font-display font-bold hover:bg-gold-light"
               >
                 Close
               </Button>
@@ -277,7 +328,7 @@ function RegistrationModal({
                     <SelectValue placeholder="Select tournament" />
                   </SelectTrigger>
                   <SelectContent className="bg-pitch-card border-gold/30">
-                    {TOURNAMENTS.map((t) => (
+                    {activeTournaments.map((t) => (
                       <SelectItem
                         key={t.id}
                         value={t.id}
@@ -302,8 +353,8 @@ function RegistrationModal({
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isPending}
-                  className="flex-1 bg-gold text-pitch font-display font-bold hover:bg-gold-light disabled:opacity-50"
+                  disabled={isPending || actorLoading}
+                  className="flex-1 bg-gold text-white font-display font-bold hover:bg-gold-light disabled:opacity-50"
                   data-ocid="registration.submit_button"
                 >
                   {isPending ? (
@@ -444,7 +495,7 @@ function AdminLoginScreen({
             <Button
               type="submit"
               data-ocid="admin.login.submit_button"
-              className="w-full font-display font-black uppercase tracking-wider text-pitch"
+              className="w-full font-display font-black uppercase tracking-wider text-white"
               style={{ background: "#ffd700" }}
             >
               Login
@@ -472,13 +523,55 @@ function AdminLoginScreen({
   );
 }
 
-function AdminDashboard({ onLogout }: { onLogout: () => void }) {
+function AdminDashboard({
+  onLogout,
+  tournaments,
+  addTournament,
+  deleteTournament,
+}: {
+  onLogout: () => void;
+  tournaments: Tournament[];
+  addTournament: (t: Tournament) => void;
+  deleteTournament: (id: string) => void;
+}) {
   const { data: registrations, isLoading, isError } = useGetAllRegistrations();
 
   const tournamentLabel = (id: string) => {
-    if (id === "up-tennis-league") return "UP Tennis League";
-    if (id === "night-champions-cup") return "Night Champions Cup";
-    return id;
+    const found = tournaments.find((t) => t.id === id);
+    return found ? found.name : id;
+  };
+
+  const [newTournament, setNewTournament] = useState({
+    name: "",
+    prize: "",
+    detail: "",
+    badge: "OPEN" as "OPEN" | "UPCOMING",
+    cta: "Register Now",
+    detailIcon: "map" as "map" | "calendar",
+  });
+  const [formError, setFormError] = useState("");
+
+  const handleAddTournament = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTournament.name.trim() || !newTournament.prize.trim()) {
+      setFormError("Name aur Prize required hain.");
+      return;
+    }
+    const id = newTournament.name
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
+    addTournament({ ...newTournament, id });
+    setNewTournament({
+      name: "",
+      prize: "",
+      detail: "",
+      badge: "OPEN",
+      cta: "Register Now",
+      detailIcon: "map",
+    });
+    setFormError("");
+    toast.success("Tournament add ho gaya!");
   };
 
   return (
@@ -605,195 +698,469 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           ))}
         </motion.div>
 
-        {/* Table section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          className="rounded-2xl overflow-hidden"
-          style={{
-            border: "1px solid rgba(255,215,0,0.25)",
-            background: "#111",
-          }}
-        >
-          <div
-            className="px-6 py-4 flex items-center justify-between"
-            style={{ borderBottom: "1px solid rgba(255,215,0,0.15)" }}
+        {/* Tabs: Registrations + Tournaments */}
+        <Tabs defaultValue="registrations" className="w-full">
+          <TabsList
+            className="mb-6 w-full sm:w-auto"
+            style={{
+              background: "#151515",
+              border: "1px solid rgba(255,215,0,0.2)",
+            }}
           >
-            <h2
-              className="font-display text-lg font-black uppercase tracking-wider"
-              style={{ color: "#ffd700" }}
+            <TabsTrigger
+              value="registrations"
+              data-ocid="admin.registrations.tab"
+              className="font-display uppercase tracking-wider text-xs data-[state=active]:bg-gold data-[state=active]:text-white"
             >
-              All Registrations
-            </h2>
-            {registrations && (
-              <span
-                className="font-display text-xs uppercase tracking-wider px-2 py-1 rounded-full"
+              Registrations
+            </TabsTrigger>
+            <TabsTrigger
+              value="tournaments"
+              data-ocid="admin.tournaments.tab"
+              className="font-display uppercase tracking-wider text-xs data-[state=active]:bg-gold data-[state=active]:text-white"
+            >
+              Tournaments
+            </TabsTrigger>
+          </TabsList>
+
+          {/* REGISTRATIONS TAB */}
+          <TabsContent value="registrations">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.15 }}
+              className="rounded-2xl overflow-hidden"
+              style={{
+                border: "1px solid rgba(255,215,0,0.25)",
+                background: "#111",
+              }}
+            >
+              <div
+                className="px-6 py-4 flex items-center justify-between"
+                style={{ borderBottom: "1px solid rgba(255,215,0,0.15)" }}
+              >
+                <h2
+                  className="font-display text-lg font-black uppercase tracking-wider"
+                  style={{ color: "#ffd700" }}
+                >
+                  All Registrations
+                </h2>
+                {registrations && (
+                  <span
+                    className="font-display text-xs uppercase tracking-wider px-2 py-1 rounded-full"
+                    style={{
+                      background: "rgba(255,215,0,0.1)",
+                      color: "rgba(255,215,0,0.7)",
+                      border: "1px solid rgba(255,215,0,0.2)",
+                    }}
+                  >
+                    {registrations.length} total
+                  </span>
+                )}
+              </div>
+              {isLoading && (
+                <div
+                  data-ocid="admin.registrations.loading_state"
+                  className="p-6 space-y-3"
+                >
+                  {[1, 2, 3, 4].map((n) => (
+                    <Skeleton
+                      key={n}
+                      className="h-10 w-full rounded-lg"
+                      style={{ background: "rgba(255,215,0,0.05)" }}
+                    />
+                  ))}
+                </div>
+              )}
+              {isError && (
+                <div
+                  data-ocid="admin.registrations.error_state"
+                  className="p-12 text-center"
+                >
+                  <p className="text-2xl mb-2">⚠️</p>
+                  <p
+                    className="font-display uppercase tracking-wider text-sm"
+                    style={{ color: "#ff8080" }}
+                  >
+                    Data load karne mein error aayi. Dobara try karein.
+                  </p>
+                </div>
+              )}
+              {!isLoading && !isError && registrations?.length === 0 && (
+                <div
+                  data-ocid="admin.registrations.empty_state"
+                  className="p-16 text-center"
+                >
+                  <div className="text-5xl mb-4">📋</div>
+                  <p
+                    className="font-display text-xl font-bold uppercase tracking-wider mb-2"
+                    style={{ color: "rgba(255,215,0,0.5)" }}
+                  >
+                    Koi Registration Nahi
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    Abhi tak kisi ne register nahi kiya hai.
+                  </p>
+                </div>
+              )}
+              {!isLoading &&
+                !isError &&
+                registrations &&
+                registrations.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <Table data-ocid="admin.registrations.table">
+                      <TableHeader>
+                        <TableRow
+                          style={{ borderColor: "rgba(255,215,0,0.1)" }}
+                        >
+                          <TableHead
+                            className="font-display uppercase tracking-wider text-xs"
+                            style={{ color: "rgba(255,215,0,0.6)" }}
+                          >
+                            #
+                          </TableHead>
+                          <TableHead
+                            className="font-display uppercase tracking-wider text-xs"
+                            style={{ color: "rgba(255,215,0,0.6)" }}
+                          >
+                            Team Name
+                          </TableHead>
+                          <TableHead
+                            className="font-display uppercase tracking-wider text-xs"
+                            style={{ color: "rgba(255,215,0,0.6)" }}
+                          >
+                            Captain
+                          </TableHead>
+                          <TableHead
+                            className="font-display uppercase tracking-wider text-xs"
+                            style={{ color: "rgba(255,215,0,0.6)" }}
+                          >
+                            Phone
+                          </TableHead>
+                          <TableHead
+                            className="font-display uppercase tracking-wider text-xs"
+                            style={{ color: "rgba(255,215,0,0.6)" }}
+                          >
+                            Tournament
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {registrations.map((reg, i) => (
+                          <TableRow
+                            key={`${reg.teamName}-${i}`}
+                            data-ocid={`admin.registrations.row.${i + 1}`}
+                            className="transition-colors"
+                            style={{ borderColor: "rgba(255,215,0,0.07)" }}
+                          >
+                            <TableCell
+                              className="font-display text-xs"
+                              style={{ color: "rgba(255,215,0,0.3)" }}
+                            >
+                              {i + 1}
+                            </TableCell>
+                            <TableCell
+                              className="font-display font-bold text-sm"
+                              style={{ color: "#ffd700" }}
+                            >
+                              {reg.teamName}
+                            </TableCell>
+                            <TableCell className="text-foreground text-sm">
+                              {reg.captainName}
+                            </TableCell>
+                            <TableCell>
+                              <a
+                                href={`tel:${reg.phoneNumber}`}
+                                className="inline-flex items-center gap-1.5 text-sm"
+                                style={{ color: "#22c55e" }}
+                              >
+                                <Phone className="w-3 h-3" />
+                                {reg.phoneNumber}
+                              </a>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className="font-display text-xs px-2 py-1 rounded-full uppercase tracking-wider"
+                                style={{
+                                  background: "rgba(255,215,0,0.12)",
+                                  color: "#ffd700",
+                                  border: "1px solid rgba(255,215,0,0.25)",
+                                }}
+                              >
+                                {tournamentLabel(reg.tournament)}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+            </motion.div>
+          </TabsContent>
+
+          {/* TOURNAMENTS TAB */}
+          <TabsContent value="tournaments">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="space-y-6"
+            >
+              {/* Add Tournament Form */}
+              <div
+                className="rounded-2xl p-6"
                 style={{
-                  background: "rgba(255,215,0,0.1)",
-                  color: "rgba(255,215,0,0.7)",
-                  border: "1px solid rgba(255,215,0,0.2)",
+                  background: "#111",
+                  border: "1px solid rgba(255,215,0,0.25)",
                 }}
               >
-                {registrations.length} total
-              </span>
-            )}
-          </div>
-
-          {/* Loading state */}
-          {isLoading && (
-            <div
-              data-ocid="admin.registrations.loading_state"
-              className="p-6 space-y-3"
-            >
-              {[1, 2, 3, 4].map((n) => (
-                <Skeleton
-                  key={n}
-                  className="h-10 w-full rounded-lg"
-                  style={{ background: "rgba(255,215,0,0.05)" }}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Error state */}
-          {isError && (
-            <div
-              data-ocid="admin.registrations.error_state"
-              className="p-12 text-center"
-            >
-              <p className="text-2xl mb-2">⚠️</p>
-              <p
-                className="font-display uppercase tracking-wider text-sm"
-                style={{ color: "#ff8080" }}
-              >
-                Data load karne mein error aayi. Dobara try karein.
-              </p>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!isLoading && !isError && registrations?.length === 0 && (
-            <div
-              data-ocid="admin.registrations.empty_state"
-              className="p-16 text-center"
-            >
-              <div className="text-5xl mb-4">📋</div>
-              <p
-                className="font-display text-xl font-bold uppercase tracking-wider mb-2"
-                style={{ color: "rgba(255,215,0,0.5)" }}
-              >
-                Koi Registration Nahi
-              </p>
-              <p className="text-muted-foreground text-sm">
-                Abhi tak kisi ne register nahi kiya hai.
-              </p>
-            </div>
-          )}
-
-          {/* Table */}
-          {!isLoading &&
-            !isError &&
-            registrations &&
-            registrations.length > 0 && (
-              <div className="overflow-x-auto">
-                <Table data-ocid="admin.registrations.table">
-                  <TableHeader>
-                    <TableRow style={{ borderColor: "rgba(255,215,0,0.1)" }}>
-                      <TableHead
-                        className="font-display uppercase tracking-wider text-xs"
-                        style={{ color: "rgba(255,215,0,0.6)" }}
+                <h2
+                  className="font-display text-lg font-black uppercase tracking-wider mb-5"
+                  style={{ color: "#ffd700" }}
+                >
+                  Naya Tournament Add Karein
+                </h2>
+                <form
+                  onSubmit={handleAddTournament}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                >
+                  <div className="space-y-1.5">
+                    <Label className="text-gold/70 font-display uppercase text-xs tracking-wider">
+                      Tournament Name *
+                    </Label>
+                    <Input
+                      value={newTournament.name}
+                      onChange={(e) =>
+                        setNewTournament((p) => ({
+                          ...p,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. UP Premier League"
+                      required
+                      data-ocid="admin.tournament.name.input"
+                      className="bg-pitch-mid border-gold/30 text-foreground placeholder:text-muted-foreground focus:border-gold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-gold/70 font-display uppercase text-xs tracking-wider">
+                      Prize *
+                    </Label>
+                    <Input
+                      value={newTournament.prize}
+                      onChange={(e) =>
+                        setNewTournament((p) => ({
+                          ...p,
+                          prize: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Rs.50,000 + Trophy"
+                      required
+                      data-ocid="admin.tournament.prize.input"
+                      className="bg-pitch-mid border-gold/30 text-foreground placeholder:text-muted-foreground focus:border-gold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-gold/70 font-display uppercase text-xs tracking-wider">
+                      Location / Detail
+                    </Label>
+                    <Input
+                      value={newTournament.detail}
+                      onChange={(e) =>
+                        setNewTournament((p) => ({
+                          ...p,
+                          detail: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Location: Lucknow"
+                      data-ocid="admin.tournament.detail.input"
+                      className="bg-pitch-mid border-gold/30 text-foreground placeholder:text-muted-foreground focus:border-gold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-gold/70 font-display uppercase text-xs tracking-wider">
+                      CTA Button Text
+                    </Label>
+                    <Input
+                      value={newTournament.cta}
+                      onChange={(e) =>
+                        setNewTournament((p) => ({ ...p, cta: e.target.value }))
+                      }
+                      placeholder="e.g. Register Now"
+                      data-ocid="admin.tournament.cta.input"
+                      className="bg-pitch-mid border-gold/30 text-foreground placeholder:text-muted-foreground focus:border-gold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-gold/70 font-display uppercase text-xs tracking-wider">
+                      Badge
+                    </Label>
+                    <Select
+                      value={newTournament.badge}
+                      onValueChange={(v) =>
+                        setNewTournament((p) => ({
+                          ...p,
+                          badge: v as "OPEN" | "UPCOMING",
+                        }))
+                      }
+                    >
+                      <SelectTrigger
+                        data-ocid="admin.tournament.badge.select"
+                        className="bg-pitch-mid border-gold/30 text-foreground focus:border-gold"
                       >
-                        #
-                      </TableHead>
-                      <TableHead
-                        className="font-display uppercase tracking-wider text-xs"
-                        style={{ color: "rgba(255,215,0,0.6)" }}
-                      >
-                        Team Name
-                      </TableHead>
-                      <TableHead
-                        className="font-display uppercase tracking-wider text-xs"
-                        style={{ color: "rgba(255,215,0,0.6)" }}
-                      >
-                        Captain
-                      </TableHead>
-                      <TableHead
-                        className="font-display uppercase tracking-wider text-xs"
-                        style={{ color: "rgba(255,215,0,0.6)" }}
-                      >
-                        Phone
-                      </TableHead>
-                      <TableHead
-                        className="font-display uppercase tracking-wider text-xs"
-                        style={{ color: "rgba(255,215,0,0.6)" }}
-                      >
-                        Tournament
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {registrations.map((reg, i) => (
-                      <TableRow
-                        key={`${reg.teamName}-${i}`}
-                        data-ocid={`admin.registrations.row.${i + 1}`}
-                        className="transition-colors"
-                        style={{ borderColor: "rgba(255,215,0,0.07)" }}
-                      >
-                        <TableCell
-                          className="font-display text-xs"
-                          style={{ color: "rgba(255,215,0,0.3)" }}
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-pitch-card border-gold/30">
+                        <SelectItem
+                          value="OPEN"
+                          className="text-foreground focus:bg-gold/20"
                         >
-                          {i + 1}
-                        </TableCell>
-                        <TableCell
-                          className="font-display font-bold text-sm"
-                          style={{ color: "#ffd700" }}
+                          OPEN
+                        </SelectItem>
+                        <SelectItem
+                          value="UPCOMING"
+                          className="text-foreground focus:bg-gold/20"
                         >
-                          {reg.teamName}
-                        </TableCell>
-                        <TableCell className="text-foreground text-sm">
-                          {reg.captainName}
-                        </TableCell>
-                        <TableCell>
-                          <a
-                            href={`tel:${reg.phoneNumber}`}
-                            className="inline-flex items-center gap-1.5 text-sm transition-colors"
-                            style={{ color: "#22c55e" }}
-                          >
-                            <Phone className="w-3 h-3" />
-                            {reg.phoneNumber}
-                          </a>
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className="font-display text-xs px-2 py-1 rounded-full uppercase tracking-wider"
-                            style={{
-                              background:
-                                reg.tournament === "up-tennis-league"
-                                  ? "rgba(255,215,0,0.12)"
-                                  : "rgba(255,100,100,0.12)",
-                              color:
-                                reg.tournament === "up-tennis-league"
-                                  ? "#ffd700"
-                                  : "#ff8080",
-                              border: `1px solid ${
-                                reg.tournament === "up-tennis-league"
-                                  ? "rgba(255,215,0,0.25)"
-                                  : "rgba(255,100,100,0.25)"
-                              }`,
-                            }}
-                          >
-                            {tournamentLabel(reg.tournament)}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          UPCOMING
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    {formError && (
+                      <p
+                        className="text-sm mb-3 font-display"
+                        style={{ color: "#ff8080" }}
+                        data-ocid="admin.tournament.error_state"
+                      >
+                        ⚠️ {formError}
+                      </p>
+                    )}
+                    <Button
+                      type="submit"
+                      data-ocid="admin.tournament.add.submit_button"
+                      className="w-full font-display font-black uppercase tracking-wider text-white"
+                      style={{ background: "#ffd700" }}
+                    >
+                      + Tournament Add Karein
+                    </Button>
+                  </div>
+                </form>
               </div>
-            )}
-        </motion.div>
+
+              {/* Current Tournaments List */}
+              <div
+                className="rounded-2xl overflow-hidden"
+                style={{
+                  background: "#111",
+                  border: "1px solid rgba(255,215,0,0.25)",
+                }}
+              >
+                <div
+                  className="px-6 py-4 flex items-center justify-between"
+                  style={{ borderBottom: "1px solid rgba(255,215,0,0.15)" }}
+                >
+                  <h2
+                    className="font-display text-lg font-black uppercase tracking-wider"
+                    style={{ color: "#ffd700" }}
+                  >
+                    Current Tournaments
+                  </h2>
+                  <span
+                    className="font-display text-xs uppercase tracking-wider px-2 py-1 rounded-full"
+                    style={{
+                      background: "rgba(255,215,0,0.1)",
+                      color: "rgba(255,215,0,0.7)",
+                      border: "1px solid rgba(255,215,0,0.2)",
+                    }}
+                  >
+                    {tournaments.length} total
+                  </span>
+                </div>
+                {tournaments.length === 0 && (
+                  <div
+                    data-ocid="admin.tournaments.empty_state"
+                    className="p-16 text-center"
+                  >
+                    <div className="text-5xl mb-4">🏆</div>
+                    <p
+                      className="font-display text-xl font-bold uppercase tracking-wider"
+                      style={{ color: "rgba(255,215,0,0.5)" }}
+                    >
+                      Koi Tournament Nahi
+                    </p>
+                  </div>
+                )}
+                <div
+                  className="divide-y"
+                  style={{ borderColor: "rgba(255,215,0,0.07)" }}
+                >
+                  {tournaments.map((t, i) => (
+                    <div
+                      key={t.id}
+                      data-ocid={`admin.tournament.item.${i + 1}`}
+                      className="px-6 py-4 flex items-center justify-between gap-4"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Trophy
+                          className="w-5 h-5 shrink-0"
+                          style={{ color: "rgba(255,215,0,0.6)" }}
+                        />
+                        <div className="min-w-0">
+                          <p
+                            className="font-display font-bold text-sm truncate"
+                            style={{ color: "#ffd700" }}
+                          >
+                            {t.name}
+                          </p>
+                          <p className="text-muted-foreground text-xs truncate">
+                            {t.prize} · {t.detail}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className="font-display text-xs px-2 py-0.5 rounded-full uppercase tracking-wider"
+                          style={{
+                            background:
+                              t.badge === "OPEN"
+                                ? "rgba(255,215,0,0.15)"
+                                : "rgba(255,60,60,0.15)",
+                            color: t.badge === "OPEN" ? "#ffd700" : "#ff8080",
+                            border:
+                              t.badge === "OPEN"
+                                ? "1px solid rgba(255,215,0,0.3)"
+                                : "1px solid rgba(255,60,60,0.3)",
+                          }}
+                        >
+                          {t.badge}
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          data-ocid={`admin.tournament.delete_button.${i + 1}`}
+                          onClick={() => {
+                            deleteTournament(t.id);
+                            toast.success(`"${t.name}" delete ho gaya!`);
+                          }}
+                          className="font-display text-xs uppercase tracking-wider"
+                          style={{
+                            background: "rgba(255,60,60,0.15)",
+                            color: "#ff8080",
+                            border: "1px solid rgba(255,60,60,0.3)",
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Footer */}
@@ -806,17 +1173,26 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
 function AdminPanel() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { tournaments, addTournament, deleteTournament } = useTournaments();
 
   if (!isLoggedIn) {
     return <AdminLoginScreen onLogin={() => setIsLoggedIn(true)} />;
   }
 
-  return <AdminDashboard onLogout={() => setIsLoggedIn(false)} />;
+  return (
+    <AdminDashboard
+      onLogout={() => setIsLoggedIn(false)}
+      tournaments={tournaments}
+      addTournament={addTournament}
+      deleteTournament={deleteTournament}
+    />
+  );
 }
 
 // ─── Main App ────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const { tournaments } = useTournaments();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTournament, setSelectedTournament] =
     useState("up-tennis-league");
@@ -1028,7 +1404,7 @@ export default function App() {
             target="_blank"
             rel="noopener noreferrer"
             data-ocid="hero.subscribe.button"
-            className="inline-flex items-center gap-3 bg-gold text-pitch font-display font-black text-lg px-8 py-4 rounded-lg uppercase tracking-wider hover:bg-gold-light transition-all duration-200 shadow-gold"
+            className="inline-flex items-center gap-3 bg-gold text-white font-display font-black text-lg px-8 py-4 rounded-lg uppercase tracking-wider hover:bg-gold-light transition-all duration-200 shadow-gold"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -1192,7 +1568,7 @@ export default function App() {
               target="_blank"
               rel="noopener noreferrer"
               data-ocid="videos.channel.button"
-              className="inline-flex items-center gap-3 border-2 border-gold text-gold font-display font-bold uppercase tracking-wider px-8 py-3 rounded-lg hover:bg-gold hover:text-pitch transition-all duration-200"
+              className="inline-flex items-center gap-3 border-2 border-gold text-gold font-display font-bold uppercase tracking-wider px-8 py-3 rounded-lg hover:bg-gold hover:text-white transition-all duration-200"
             >
               <SiYoutube className="w-5 h-5" />
               View All Videos on YouTube
@@ -1221,7 +1597,7 @@ export default function App() {
           </motion.div>
 
           <div className="grid md:grid-cols-2 gap-8 justify-items-center">
-            {TOURNAMENTS.map((tournament, index) => (
+            {tournaments.map((tournament, index) => (
               <motion.div
                 key={tournament.id}
                 data-ocid={`tournament.card.${index + 1}`}
@@ -1300,7 +1676,7 @@ export default function App() {
                 <motion.button
                   data-ocid={`tournament.register.button.${index + 1}`}
                   onClick={() => openModal(tournament.id)}
-                  className="w-full py-3 px-6 font-display font-black uppercase tracking-wider rounded-lg text-pitch transition-all duration-200"
+                  className="w-full py-3 px-6 font-display font-black uppercase tracking-wider rounded-lg text-white transition-all duration-200"
                   style={{ background: "#ffd700" }}
                   whileHover={{ background: "#ffe566", scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -1463,6 +1839,7 @@ export default function App() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         defaultTournament={selectedTournament}
+        tournaments={tournaments}
       />
     </div>
   );
