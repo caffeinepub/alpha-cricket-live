@@ -53,37 +53,37 @@ const TOURNAMENTS = [
   },
 ];
 
-// Hardcoded video IDs from @alphacricketlive8 channel
+// Real videos from @alphacricketlive8 channel
 const CHANNEL_VIDEOS = [
   {
-    id: "dQw4w9WgXcQ",
-    title: "UP Tennis League - Semifinal Highlights",
-    views: "12K views",
+    id: "BuU6OQM78C0",
+    url: "https://www.youtube.com/live/BuU6OQM78C0",
+    title: "Alpha Cricket Live - Match 1",
   },
   {
-    id: "9bZkp7q19f0",
-    title: "Night Champions Cup - Final Match",
-    views: "8.4K views",
+    id: "LuQGKN7js3U",
+    url: "https://youtu.be/LuQGKN7js3U",
+    title: "Alpha Cricket Live - Match 2",
   },
   {
-    id: "kJQP7kiw5Fk",
-    title: "Lucknow Premier League Day 3",
-    views: "5.1K views",
+    id: "YJ1839T01Gw",
+    url: "https://www.youtube.com/live/YJ1839T01Gw",
+    title: "Cricket Match - Live Stream",
   },
   {
-    id: "M7lc1UVf-VE",
-    title: "Best Catches & Sixes Compilation",
-    views: "9.7K views",
+    id: "75n01DFhGC4",
+    url: "https://www.youtube.com/live/75n01DFhGC4",
+    title: "Alpha Cricket Live - Match 4",
   },
   {
-    id: "OPf0YbXqDm0",
-    title: "Alpha Cricket Live - Season Opener",
-    views: "15K views",
+    id: "1nT_Bk_GOTE",
+    url: "https://www.youtube.com/live/1nT_Bk_GOTE",
+    title: "Cricket Match - Live Action",
   },
   {
-    id: "RgKAFK5djSk",
-    title: "Champions Trophy 2025 - Grand Final",
-    views: "20K views",
+    id: "KiFDYnS6hzk",
+    url: "https://www.youtube.com/live/KiFDYnS6hzk",
+    title: "Alpha Cricket Live - Match 6",
   },
 ];
 
@@ -604,7 +604,7 @@ export default function App() {
             {CHANNEL_VIDEOS.map((video, i) => (
               <motion.a
                 key={video.id}
-                href={`https://www.youtube.com/watch?v=${video.id}`}
+                href={video.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 data-ocid={`video.item.${i + 1}`}
@@ -650,10 +650,9 @@ export default function App() {
 
                 {/* Video info */}
                 <div className="p-4">
-                  <h3 className="font-display font-bold text-sm text-white group-hover:text-gold transition-colors duration-200 leading-snug mb-1">
+                  <h3 className="font-display font-bold text-sm text-white group-hover:text-gold transition-colors duration-200 leading-snug">
                     {video.title}
                   </h3>
-                  <p className="text-muted-foreground text-xs">{video.views}</p>
                 </div>
               </motion.a>
             ))}
